@@ -11,9 +11,15 @@ class Game2048:
 
     def __init__(self, field_size: int = 4):
         self.field_size = field_size
-        self.cells = SquareMatrix(4)
+        self.cells = self.generate_new_field()
+        self.init_game()
+
+    def init_game(self):
         for _ in range(self.field_size // 2):
             self.add_random_2()
+
+    def generate_new_field(self) -> SquareMatrix:
+        return SquareMatrix(self.field_size)
 
     def index_free_cells(self) -> list[tuple[int, int]]:
         return self.cells.search(0)
@@ -41,7 +47,7 @@ class Game2048:
                 merge(cells[i])
             cells[i] += [0] * (self.field_size - len(cells[i]))
 
-    def are_moves_left(self):
+    def are_moves_left(self) -> bool:
         if self.index_free_cells():
             return True
         else:
@@ -51,6 +57,9 @@ class Game2048:
                 if not(cells_clone == self.cells):
                     return True
         return False
+
+    def has_won(self) -> bool:
+        return True if len(self.cells.search(2048)) else False
 
     def shake_towards(self, cells: SquareMatrix, direction: int):
         """Shakes towards one of 4 directions:\n
@@ -62,12 +71,18 @@ class Game2048:
         self.shake(cells)
         cells.unrotate()
 
-    def make_turn(self, direction: int) -> bool:
+    def make_turn(self, direction: int):
         """Makes a turn and responds whether the game is over"""
         self.shake_towards(self.cells, direction)
         if self.index_free_cells():
             self.add_random_2()
-        return True if not self.are_moves_left() else False
+
+    def is_game_over(self):
+        return True if not self.are_moves_left() or self.has_won() else False
+
+    def reset(self):
+        self.cells = self.generate_new_field()
+        self.init_game()
 
 
 class Game2048UI:
@@ -94,17 +109,19 @@ class Game2048UI:
     def __init__(self, game: Game2048):
         self.game = game
         self.root = tk.Tk()
-        window_size = self.game.field_size * self.CELL_SIZE
-        self.canvas = tk.Canvas(self.root, width=window_size, height=window_size, bg='#776e65')
+        window_dimension_size = self.game.field_size * self.CELL_SIZE
+        self.canvas = tk.Canvas(self.root, width=window_dimension_size, height=window_dimension_size, bg='#776e65')
         self.canvas.pack()
 
     def key_pressed(self, event):
         keycode = event.keycode
         directions = dict(zip(self.KEYCODES[sys.platform], (0, 1, 2, 3)))   # bind keycodes to turns based on os
-        endgame_status = self.game.make_turn(directions[keycode])
+        self.game.make_turn(directions[keycode])
         self.draw()
-        if endgame_status:
+        if self.game.is_game_over():
             messagebox.showwarning('', 'Game is over!')
+            self.game.reset()
+            self.draw()
 
     def draw_grid(self):
         for i in range(1, self.CELL_SIZE + 1):
